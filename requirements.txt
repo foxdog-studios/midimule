@@ -1,0 +1,4 @@
+pyddp==0.0.3
+pygame==1.9.1release
+ws4py==0.3.4
+wsgiref==0.1.2
