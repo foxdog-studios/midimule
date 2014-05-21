@@ -48,10 +48,10 @@ def main(argv=None):
 
     if args.listener is None:
         import midimule
-        listener = midimule.LoggingMidiPortListener()
+        listener_module = midimule
     else:
         listener_module = imp.load_source('listener_module', args.listener)
-        listener = listener_module.get_listener()
+    listener = listener_module.get_listener(args.listener_args)
 
     listen_to_port(midi_in, port_id, listener)
 
@@ -68,6 +68,7 @@ def parse_argv(argv=None):
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-n', '--name', dest='port')
     group.add_argument('-p', '--port', type=int)
+    parser.add_argument('listener_args', default=[], nargs='*')
     return parser.parse_args(args=argv[1:])
 
 
