@@ -1,15 +1,19 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 from argparse import ArgumentParser
 from collections import OrderedDict
+import imp
 import logging
+import math
 import os
 import sys
+import time
 
-import ddp
-
+import rtmidi
 
 LOG_LEVELS = (
     logging.CRITICAL,
@@ -25,53 +29,107 @@ LOG_NAME_TO_LEVEL = OrderedDict((name, level)
                                 for level, name in LOG_LEVEL_TO_NAMES.items())
 
 
-def build_argument_parser():
+def main(argv=None):
+    args = parse_argv(argv=argv)
+    config_logger(args)
+
+    midi_in = rtmidi.MidiIn()
+
+    if args.port is None:
+        port_id = ask_port_id(midi_in)
+    else:
+        port_id = args.port
+
+    if args.listener is None:
+        import midimule
+        listener = midimule.LoggingMidiPortListener()
+    else:
+        listener_module = imp.load_source('listener_module', args.listener)
+        listener = listener_module.get_listener()
+
+    listen_to_port(midi_in, port_id, listener)
+
+    return 0
+
+
+def parse_argv(argv=None):
+    if argv is None:
+        argv = sys.argv
     parser = ArgumentParser()
     parser.add_argument('-l', '--log-level', choices=LOG_NAME_TO_LEVEL.keys(),
                         default=LOG_LEVEL_TO_NAMES[logging.INFO])
-    parser.add_argument('-d', '--device')
-    parser.add_argument('-m', '--meteor', default='127.0.0.1:3000')
-    parser.add_argument('method_name')
-    return parser
+    parser.add_argument('-L', '--listener')
+    parser.add_argument('-p', '--port', type=int)
+    return parser.parse_args(args=argv[1:])
 
 
-def main(argv=None):
+def config_logger(args):
     global logger
-
-    if argv is None:
-        argv = sys.argv
-    args = build_argument_parser().parse_args(args=argv[1:])
-
     logging.basicConfig(
             datefmt='%H:%M:%S',
             format='[%(levelname).1s %(asctime)s] %(message)s',
             level=LOG_NAME_TO_LEVEL[args.log_level])
     logger = logging.getLogger(__name__)
 
-    conn = ddp.DdpConnection(ddp.ServerUrl(args.meteor))
-    conn.connect()
 
-    from midimule.jarkle import jarkle
-    from midimule.midi import get_midi_manager
-    from midimule.midi import util
+def ask_port_id(midi_in):
+    port_names = midi_in.get_ports()
 
-    with get_midi_manager() as manager:
-        if args.device:
-            device_info = util.find_input_midi_device_info(args.device)
-            device_id = device_info.device_id
+    if not port_names:
+        raise Exception('No MIDI ports')
+
+    port_id_header = 'ID'
+    port_name_header = 'Name'
+
+    port_id_width = int(math.ceil(math.log10(len(port_names))))
+    port_id_width = max(len(port_id_header), port_id_width)
+
+    port_name_width = int(math.ceil(max(len(name) for name in port_names)))
+    port_name_width = max(len(port_id_header), port_name_width)
+
+    def print_row(port_id, port_name):
+        print('| {:>{}} | {:{}} |'.format(
+                port_id,
+                port_id_width,
+                port_name,
+                port_name_width))
+
+    print_row(port_id_header, port_name_header)
+    for port_id, port_name in enumerate(port_names):
+        print_row(port_id, port_name)
+
+    while True:
+        port_id = None
+        try:
+            port_id = int(raw_input('Enter MIDI port ID: '))
+        except ValueError:
+            pass
         else:
-            device_id = util.request_input_device_id()
+            if not 0 <= port_id < len(port_names):
+                port_id = None
+        if port_id is not None:
+            return port_id
+        print("Sorry, that wasn't a valid MIDI port ID.")
 
-        with manager.get_input_device(device_id) as device:
-            jarkle(device, conn, args.method_name)
 
-    return 0
+def listen_to_port(midi_in, port_id, listener):
+    try:
+        midi_in.set_callback(listener.on_message)
+        listener.on_before_open()
+        midi_in.open_port(port_id)
+        listener.on_after_open()
+        while True:
+            time.sleep(10)
+        listener.on_before_close()
+    finally:
+        midi_in.close_port()
+        listener.on_after_close()
 
 
 if __name__ == '__main__':
     try:
         return_code = main()
-    except KeyboardInterrupt:
-        return_code = 1
+    except (KeyboardInterrupt, SystemExit):
+        return_code = 0
     exit(return_code)
 

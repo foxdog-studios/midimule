@@ -1,4 +1,4 @@
 pyddp==0.1.0
-pygame==1.9.1release
+python-rtmidi==0.4.3b1
 ws4py==0.3.4
 wsgiref==0.1.2

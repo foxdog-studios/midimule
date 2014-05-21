@@ -8,7 +8,7 @@ setopt NO_UNSET
 # = Configuration                                                              =
 # ==============================================================================
 
-repo=$(realpath -- ${0:h}/..)
+repo=$(realpath "$(dirname "$(realpath -- "$0")")/..")
 
 venv=$repo/local/venv
 
@@ -31,30 +31,8 @@ function install_pacman_packages()
 function create_virtualenv()
 {
     mkdir --parents $venv:h
-    virtualenv --python=python2.7 $venv
+    virtualenv-2.7 $venv
 }
-
-function install_pygame()
-{(
-    local tmp=$(mktemp -d)
-    cd $tmp
-
-    local source_url=http://www.pygame.org/ftp/pygame-1.9.1release.tar.gz
-    curl $source_url | tar xz
-
-    local patch_url
-    patch_url=https://projects.archlinux.org/svntogit/packages.git/plain/trunk/
-    patch_url+=pygame-v4l.patch?h=packages/python-pygame
-    curl $patch_url | patch -p0
-
-    unsetopt NO_UNSET
-    source $venv/bin/activate
-    setopt NO_UNSET
-
-    cd pygame-1.9.1release
-    pip install .
-    rm --force --recursive $tmp
-)}
 
 function install_python_packages()
 {
@@ -73,7 +51,6 @@ function install_python_packages()
 tasks=(
     install_pacman_packages
     create_virtualenv
-    install_pygame
     install_python_packages
 )
 
@@ -90,7 +67,6 @@ function usage()
 
 		    install_pacman_packages
 		    create_virtualenv
-		    install_pygame
 		    install_python_packages
 	EOF
     exit 1
