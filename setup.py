@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(
     name='midimule',
-    version='0.0.1',
+    version='0.1.0',
     packages=['midimule'],
     install_requires=['python-rtmidi'],
 )

@@ -10,6 +10,7 @@ import imp
 import logging
 import math
 import os
+import re
 import sys
 import time
 
@@ -35,10 +36,15 @@ def main(argv=None):
 
     midi_in = rtmidi.MidiIn()
 
-    if args.port is None:
-        port_id = ask_port_id(midi_in)
-    else:
+    if isinstance(args.port, (int, long)):
         port_id = args.port
+    elif isinstance(args.port, basestring):
+        port_id = find_port_id(midi_in, args.port)
+    else:
+        port_id = None
+
+    if port_id is None:
+        port_id = ask_port_id(midi_in)
 
     if args.listener is None:
         import midimule
@@ -59,7 +65,9 @@ def parse_argv(argv=None):
     parser.add_argument('-l', '--log-level', choices=LOG_NAME_TO_LEVEL.keys(),
                         default=LOG_LEVEL_TO_NAMES[logging.INFO])
     parser.add_argument('-L', '--listener')
-    parser.add_argument('-p', '--port', type=int)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('-n', '--name', dest='port')
+    group.add_argument('-p', '--port', type=int)
     return parser.parse_args(args=argv[1:])
 
 
@@ -70,6 +78,13 @@ def config_logger(args):
             format='[%(levelname).1s %(asctime)s] %(message)s',
             level=LOG_NAME_TO_LEVEL[args.log_level])
     logger = logging.getLogger(__name__)
+
+
+def find_port_id(midi_in, pattern):
+    regex = re.compile(pattern)
+    for port_id, port_name in enumerate(midi_in.get_ports()):
+        if regex.match(port_name):
+            return port_id
 
 
 def ask_port_id(midi_in):
