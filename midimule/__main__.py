@@ -34,7 +34,10 @@ def main(argv=None):
     args = parse_argv(argv=argv)
     config_logger(args)
 
-    midi_in = rtmidi.MidiIn()
+    kwargs = {}
+    if args.client_name is not None:
+        kwargs['name'] = args.client_name
+    midi_in = rtmidi.MidiIn(**kwargs)
 
     if isinstance(args.port, (int, long)):
         port_id = args.port
@@ -62,6 +65,7 @@ def parse_argv(argv=None):
     if argv is None:
         argv = sys.argv
     parser = ArgumentParser()
+    parser.add_argument('-c', '--client-name')
     parser.add_argument('-l', '--log-level', choices=LOG_NAME_TO_LEVEL.keys(),
                         default=LOG_LEVEL_TO_NAMES[logging.INFO])
     parser.add_argument('-L', '--listener')

@@ -1,16 +1,18 @@
 #!/usr/bin/env zsh
 
 setopt ERR_EXIT
+setopt LOCAL_OPTIONS
 setopt NO_UNSET
+setopt PIPE_FAIL
 
 
 # ==============================================================================
 # = Configuration                                                              =
 # ==============================================================================
 
-repo=$(realpath "$(dirname "$(realpath -- "$0")")/..")
+root=${${(%):-%x}:A:h:h}
 
-venv=$repo/local/venv
+venv=$root/local/venv2
 
 pacman_packages=(
     git
@@ -31,16 +33,16 @@ function install_pacman_packages()
 function create_virtualenv()
 {
     mkdir --parents $venv:h
-    virtualenv-2.7 $venv
+    virtualenv2 $venv
 }
 
 function install_python_packages()
 {
-    unsetopt NO_UNSET
+    unsetopt ERR_EXIT NO_UNSET
     source $venv/bin/activate
-    setopt NO_UNSET
+    setopt ERR_EXIT NO_UNSET
 
-    pip install --requirement $repo/requirements.txt
+    pip install --requirement $root/requirement2.txt
 }
 
 
@@ -61,7 +63,7 @@ function usage()
 
 		Usage:
 
-		    setup.zsh [TASK...]
+		    setup [TASK...]
 
 		Tasks:
 
@@ -82,4 +84,3 @@ for task in ${@:-$tasks}; do
     print -P -- "%F{green}Task: $task%f"
     $task
 done
-
